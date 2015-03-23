@@ -1,5 +1,6 @@
 package gsp.op1;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -10,6 +11,7 @@ import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
+import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.api.java.function.VoidFunction;
 
@@ -17,9 +19,6 @@ import scala.Tuple2;
 
 public class ShortestPair {
 
-	/**
-	 * @param args
-	 */
 	public static void main(String[] args) {
 		SparkConf conf= new SparkConf().setAppName("c_hull").setMaster("local[2]");
 		JavaSparkContext sc=new JavaSparkContext(conf);
@@ -54,45 +53,120 @@ public class ShortestPair {
 		};
 		
 		
-		JavaPairRDD<Double,Double> pointsByY=points.mapToPair(new PairFunction<Tuple2<Double,Double>, Double,Double>(){
-			public Tuple2<Double,Double> call(Tuple2<Double,Double> t){
-				return new Tuple2<Double,Double>(t._2,t._1);
-			}		
-		});
+		Function2<Double,Double,Double> max=new Function2<Double,Double,Double>(){
+			 public Double call(Double t, Double s) {
+			        return t >= s ? t: s;
+			    }
+		};
 		
-		List<Tuple2<Double,Double>> l=points.sortByKey().collect();
-		Collections.sort(l,comparator);
+		Function2<Double,Double,Double> min=new Function2<Double,Double,Double>(){
+			 public Double call(Double t, Double s) {
+			        return t >= s ? s: t;
+			    }
+		}; 
 		
-		List<Tuple2<Double,Double>> l2=pointsByY.sortByKey().collect();
-		Collections.sort(l2,comparator);
+		Comparator<Double> max1 =new Comparator<Double>() {
+			 public int compare(Double tuple1, Double tuple2) {
+			        return tuple1 <= tuple2? -1 : 1;
+			    }	
+		};
 		
-		List<Tuple2<String,Double>> distances_list=new ArrayList<Tuple2<String,Double>>();
 		
-		for(Tuple2<Double,Double> t: points.take((int)points.count())){
-			for(Tuple2<Double,Double> s: points.take((int)points.count())){
+		List<Tuple2<Double,String>> distances_list=new ArrayList<Tuple2<Double,String>>();
+		List<Double> distances=new ArrayList<Double>();
+		List<Double> shorter_distances=new ArrayList<Double>();
+
+		JavaRDD<Double> maxi=points.keys();
+		final double MAXIMUM_VALUE=maxi.reduce(max);
+			
+		JavaPairRDD<Double,Double>pointsNegative=points.filter(new Function<Tuple2<Double,Double>,Boolean>(){
+			public Boolean call(Tuple2<Double,Double> t){
+				if(t._1<MAXIMUM_VALUE/2)
+				return true;
+				else
+				return false;
+			}
+		}).sortByKey();
+		
+		JavaPairRDD<Double,Double>pointsPositive=points.filter(new Function<Tuple2<Double,Double>,Boolean>(){
+			public Boolean call(Tuple2<Double,Double> t){
+				if(t._1>=MAXIMUM_VALUE/2)
+				return true;
+				else
+				return false;
+			}
+		}).sortByKey();
+		/*
+		for(Tuple2<Double,Double> t: pointsNegative.collect())
+			System.out.println(t);
+		
+		System.out.println("----------------------");
+		
+		for(Tuple2<Double,Double> t: pointsPositive.collect())
+			System.out.println(t);
+		*/
+		for(Tuple2<Double,Double> t: pointsNegative.take((int)pointsNegative.count())){
+			for(Tuple2<Double,Double> s: pointsNegative.take((int)pointsNegative.count())){
 				double distance;
 				if(!t.equals(s)){
 				distance=Farthestpair.compute_distance(t,s);
-				distances_list.add(new Tuple2<String,Double>(s.toString()+"to"+t.toString(),distance));
+				if(!distances.contains(distance)){
+				distances_list.add(new Tuple2<Double,String>(distance,s.toString()+"to"+t.toString()));
+				distances.add(distance);
+				}
 				}
 			}
 		}
 		
-
-		double smallest=10000000.0D;
-		String p2p="";
-		for(Tuple2<String,Double> s:distances_list){
-			if(s._2<smallest){
-				smallest=s._2;
-				p2p=s._1;
+		for(Tuple2<Double,Double> t: pointsPositive.take((int)pointsPositive.count())){
+			for(Tuple2<Double,Double> s: pointsPositive.take((int)pointsPositive.count())){
+				double distance;
+				if(!t.equals(s)){
+				distance=Farthestpair.compute_distance(t,s);	
+				if(!distances.contains(distance)){
+				distances_list.add(new Tuple2<Double,String>(distance,s.toString()+"to"+t.toString()));
+				distances.add(distance);
+				}
+				}
 			}
 		}
 		
+		JavaRDD<Double> distance_rdd=sc.parallelize(distances);
+		final double DELTA=distance_rdd.reduce(min);
 		
-		System.out.println("The shortest points are "+p2p+" with distance "+ smallest);
-
+		JavaPairRDD<Double,Double>pointsEdgeCases=points.filter(new Function<Tuple2<Double,Double>,Boolean>(){
+			public Boolean call(Tuple2<Double,Double> t){
+				if(t._1<=MAXIMUM_VALUE/2+DELTA && t._1>=MAXIMUM_VALUE/2-DELTA)
+				return true;
+				else
+				return false;
+			}
+		}).sortByKey();
 		
 		
+		if(pointsEdgeCases.count()>1){
+			for(Tuple2<Double,Double> t: pointsEdgeCases.take((int)pointsEdgeCases.count())){
+				for(Tuple2<Double,Double> s: pointsEdgeCases.take((int)pointsEdgeCases.count())){
+					double distance;
+					if(!t.equals(s)){
+					distance=Farthestpair.compute_distance(t,s);	
+					if(distance<DELTA && !distances.contains(distance)){
+					distances_list.add(new Tuple2<Double,String>(distance,s.toString()+"to"+t.toString()));
+					shorter_distances.add(distance);
+					}
+					}
+				}
+			}
+		}
 		
+		JavaRDD<Double> shorter_distance_rdd=sc.parallelize(shorter_distances);
+		double SHORTEST_DIST=DELTA; 
+		if(shorter_distance_rdd.count()>0)
+		SHORTEST_DIST=Math.min(DELTA, shorter_distance_rdd.reduce(min)); 
+			
+		for(Tuple2<Double,String> t:distances_list)
+			if(t._1.equals(SHORTEST_DIST))
+			System.out.println(t);
+		System.out.println("Total no of computations "+ distances_list.size());			
 	}
 }

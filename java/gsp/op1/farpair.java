@@ -84,12 +84,7 @@ public class farpair {
 		
 		JavaRDD<Tuple2<Double,Double>> conv_hull_rdd=sc.parallelize(convex_hull);
 		conv_hull_rdd.cache();
-		conv_hull_rdd.reduce(new Function2<Tuple2<Double,Double>,Tuple2<Double,Double>,Double>(){
-			public Double call(Tuple2<Double,Double> t,Tuple2<Double,Double> s){
-				
-			}
-		});
-		
+		conv_hull_rdd.ma
 		/*Function2<Tuple2<Double,Double>,Tuple2<Double,Double>,farpair> getDistance=new Function2<Tuple2<Double,Double>,Tuple2<Double,Double>,farpair>(){
 			public farpair call(Tuple2<Double,Double> t,Tuple2<Double,Double> s){
 				double dist=compute_distance(t,s);
