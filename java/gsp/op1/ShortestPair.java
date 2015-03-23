@@ -4,7 +4,10 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
@@ -18,7 +21,9 @@ import org.apache.spark.api.java.function.VoidFunction;
 import scala.Tuple2;
 
 public class ShortestPair {
-
+	static int count=0;
+	static double short_dist=1000000D;
+	
 	public static void main(String[] args) {
 		SparkConf conf= new SparkConf().setAppName("c_hull").setMaster("local[2]");
 		JavaSparkContext sc=new JavaSparkContext(conf);
@@ -75,7 +80,9 @@ public class ShortestPair {
 		List<Tuple2<Double,String>> distances_list=new ArrayList<Tuple2<Double,String>>();
 		List<Double> distances=new ArrayList<Double>();
 		List<Double> shorter_distances=new ArrayList<Double>();
-
+		HashSet<String> pairs_names=new HashSet<String>();
+		Map<String, Double> map = new HashMap<String, Double>();
+		
 		JavaRDD<Double> maxi=points.keys();
 		final double MAXIMUM_VALUE=maxi.reduce(max);
 			
@@ -108,11 +115,15 @@ public class ShortestPair {
 		for(Tuple2<Double,Double> t: pointsNegative.take((int)pointsNegative.count())){
 			for(Tuple2<Double,Double> s: pointsNegative.take((int)pointsNegative.count())){
 				double distance;
-				if(!t.equals(s)){
+				String pair_name=s.toString()+"to"+t.toString();
+				if(!t.equals(s)&&!(map.containsKey(pair_name)||map.containsKey(t.toString()+"to"+s.toString()))){
 				distance=Farthestpair.compute_distance(t,s);
-				if(!distances.contains(distance)){
-				distances_list.add(new Tuple2<Double,String>(distance,s.toString()+"to"+t.toString()));
+				map.put(pair_name, distance);
+				count++;
+				if(!distances.contains(distance)&&distance<short_dist){
+				distances_list.add(new Tuple2<Double,String>(distance,pair_name));
 				distances.add(distance);
+				short_dist=distance;
 				}
 				}
 			}
@@ -121,18 +132,22 @@ public class ShortestPair {
 		for(Tuple2<Double,Double> t: pointsPositive.take((int)pointsPositive.count())){
 			for(Tuple2<Double,Double> s: pointsPositive.take((int)pointsPositive.count())){
 				double distance;
-				if(!t.equals(s)){
-				distance=Farthestpair.compute_distance(t,s);	
-				if(!distances.contains(distance)){
+				String pair_name=s.toString()+"to"+t.toString();
+				if(!t.equals(s)&&!(map.containsKey(pair_name)||map.containsKey(t.toString()+"to"+s.toString()))){
+				distance=Farthestpair.compute_distance(t,s);
+				map.put(pair_name, distance);
+				count++;
+				if(!distances.contains(distance)&&distance<short_dist){
 				distances_list.add(new Tuple2<Double,String>(distance,s.toString()+"to"+t.toString()));
 				distances.add(distance);
+				short_dist=distance;
 				}
 				}
 			}
 		}
 		
 		JavaRDD<Double> distance_rdd=sc.parallelize(distances);
-		final double DELTA=distance_rdd.reduce(min);
+		final double DELTA=Math.sqrt(distance_rdd.reduce(min));
 		
 		JavaPairRDD<Double,Double>pointsEdgeCases=points.filter(new Function<Tuple2<Double,Double>,Boolean>(){
 			public Boolean call(Tuple2<Double,Double> t){
@@ -150,6 +165,7 @@ public class ShortestPair {
 					double distance;
 					if(!t.equals(s)){
 					distance=Farthestpair.compute_distance(t,s);	
+					count++;
 					if(distance<DELTA && !distances.contains(distance)){
 					distances_list.add(new Tuple2<Double,String>(distance,s.toString()+"to"+t.toString()));
 					shorter_distances.add(distance);
@@ -162,11 +178,11 @@ public class ShortestPair {
 		JavaRDD<Double> shorter_distance_rdd=sc.parallelize(shorter_distances);
 		double SHORTEST_DIST=DELTA; 
 		if(shorter_distance_rdd.count()>0)
-		SHORTEST_DIST=Math.min(DELTA, shorter_distance_rdd.reduce(min)); 
+		SHORTEST_DIST=Math.min(DELTA, Math.sqrt(shorter_distance_rdd.reduce(min))); 
 			
 		for(Tuple2<Double,String> t:distances_list)
 			if(t._1.equals(SHORTEST_DIST))
 			System.out.println(t);
-		System.out.println("Total no of computations "+ distances_list.size());			
+		System.out.println("Total no of computations "+ distances_list.size()+ " "+ count);			
 	}
 }

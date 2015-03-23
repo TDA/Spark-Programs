@@ -97,7 +97,7 @@ public class Farthestpair {
 	
 	public static double compute_distance(Tuple2<Double,Double> t,Tuple2<Double,Double> s){
 		double distance=-100000.0D;
-		distance=Math.sqrt(Math.pow(t._1-s._1,2)+Math.pow(t._2-s._2,2));
+		distance=Math.pow(t._1-s._1,2)+Math.pow(t._2-s._2,2);
 		return distance;
 	}
 
