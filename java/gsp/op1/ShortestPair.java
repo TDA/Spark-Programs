@@ -25,7 +25,7 @@ public class ShortestPair {
 	static double short_dist=1000000D;
 	
 	public static void main(String[] args) {
-		SparkConf conf= new SparkConf().setAppName("c_hull").setMaster("local[2]");
+		SparkConf conf= new SparkConf().setAppName("shortpair").setMaster("local[2]");
 		JavaSparkContext sc=new JavaSparkContext(conf);
 		JavaRDD<String> lines=sc.textFile("C:/testdata/FarthestPairandClosestPairTestData.csv",1);
 		JavaPairRDD<Double,Double> points=lines.mapToPair(new PairFunction<String, Double,Double>(){
@@ -80,7 +80,7 @@ public class ShortestPair {
 		List<Tuple2<Double,String>> distances_list=new ArrayList<Tuple2<Double,String>>();
 		List<Double> distances=new ArrayList<Double>();
 		List<Double> shorter_distances=new ArrayList<Double>();
-		HashSet<String> pairs_names=new HashSet<String>();
+		//HashSet<String> pairs_names=new HashSet<String>();
 		Map<String, Double> map = new HashMap<String, Double>();
 		
 		JavaRDD<Double> maxi=points.keys();
@@ -179,10 +179,11 @@ public class ShortestPair {
 		double SHORTEST_DIST=DELTA; 
 		if(shorter_distance_rdd.count()>0)
 		SHORTEST_DIST=Math.min(DELTA, Math.sqrt(shorter_distance_rdd.reduce(min))); 
-			
+		System.out.print(SHORTEST_DIST);
+		SHORTEST_DIST=Math.pow(SHORTEST_DIST, 2);
 		for(Tuple2<Double,String> t:distances_list)
 			if(t._1.equals(SHORTEST_DIST))
-			System.out.println(t);
+			System.out.println(t._2);
 		System.out.println("Total no of computations "+ distances_list.size()+ " "+ count);			
 	}
 }

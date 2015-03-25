@@ -16,10 +16,6 @@ import org.apache.spark.api.java.function.VoidFunction;
 import scala.Tuple2;
 
 public class Farthestpair {
-
-	/**
-	 * @param args
-	 */
 	public static void main(String[] args) {
 		SparkConf conf= new SparkConf().setAppName("c_hull").setMaster("local[2]");
 		JavaSparkContext sc=new JavaSparkContext(conf);
@@ -34,8 +30,7 @@ public class Farthestpair {
 				return new Tuple2<Double,Double>(Double.parseDouble(s1[0]),Double.parseDouble(s1[1]));
 				}
 				else
-					return new Tuple2<Double,Double>(Double.parseDouble("-20000000"),Double.parseDouble("-20000000"));
-					
+					return new Tuple2<Double,Double>(Double.parseDouble("-20000000"),Double.parseDouble("-20000000"));					
 			}
 		}).filter(new Function<Tuple2<Double,Double>,Boolean>(){
 			public Boolean call(Tuple2<Double,Double> t){
@@ -43,10 +38,8 @@ public class Farthestpair {
 				return true;
 				return false;
 			}
-			
 		});
 		points.cache();
-		
 		Comparator<Tuple2<Double,Double>> comparator=new Comparator<Tuple2<Double,Double>>(){
 			 public int compare(Tuple2<Double, Double> tuple1, Tuple2<Double, Double> tuple2) {
 			        return tuple1._1 <= tuple2._1 && tuple1._2<=tuple2._2? -1 : 1;
@@ -94,7 +87,6 @@ public class Farthestpair {
 		
 		System.out.println("The farthest points are "+p2p+" with distance "+ largest);
 }
-	
 	public static double compute_distance(Tuple2<Double,Double> t,Tuple2<Double,Double> s){
 		double distance=-100000.0D;
 		distance=Math.pow(t._1-s._1,2)+Math.pow(t._2-s._2,2);

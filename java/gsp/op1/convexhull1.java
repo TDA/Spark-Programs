@@ -1,4 +1,6 @@
 package gsp.op1;
+import math.geom2d.Point2D;
+
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
@@ -6,6 +8,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.*;
 import org.apache.spark.broadcast.Broadcast;
 
+import scala.Equals;
 import scala.Tuple2;
 
 import java.io.Serializable;
@@ -13,12 +16,20 @@ import java.util.*;
 
 class Polygon implements Serializable{
 	Double x1,y1,x2,y2;
-	public Polygon(Double x1,Double y1,Double x2,Double y2){
-		this.x1=x1;
-		this.y1=y1;
-		this.x2=x2;
-		this.y2=y2;
+	List<Points> vertices=new ArrayList<Points>();
+	
+	public Polygon(){
+		//System.out.println("");
 	}
+	public Polygon(Double x1,Double y1,Double x2,Double y2){
+		this.vertices.add(new Points(x1,y1));
+		this.vertices.add(new Points(x1,y2));
+		this.vertices.add(new Points(x2,y2));
+		this.vertices.add(new Points(x2,y1));
+		
+	}
+	
+	
 	public boolean isPointWithinBoundaries(Double x,Double y){
 		return ((this.x1<=x&&x<=this.x2)&&(this.y2<=y&&y<=this.y1))?true:false;
 	}
@@ -33,6 +44,12 @@ class Points implements Serializable{
 	public Points(Double x1,Double y1){
 		this.x1=x1;
 		this.y1=y1;
+	}
+	public Boolean equals(Points p){
+		if(p.x1==this.x1&&p.y1==this.y1){
+			return true;
+		}
+		return false;
 	}
 }
 
